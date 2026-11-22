@@ -16,7 +16,7 @@
   --danger: #ffb3bf;
   --close-hover: #a13946;
   --favorite: #ecd3a0;
-  --gutter: clamp(13px, 2.5vw, 20px);
+  --gutter: 13px;
   font: 13px/1.45 "Segoe UI", sans-serif;
   color: var(--text);
   scrollbar-width: thin;
@@ -68,10 +68,13 @@ body[data-maximized=true] .window-actions .maximize::before { box-shadow: 2px -2
 .window-actions button:focus-visible { outline-offset: 0; }
 
 main {
-  display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr); overflow: clip;
 }
 body[data-editor=open] main {
-  grid-template-columns: clamp(274px, calc(1.44 * var(--closed-width, 444px) - 44vw), 100%) minmax(0, 1fr);
+  grid-template-columns: min(var(--library-width), max(274px, calc(100% - 376px))) minmax(0, 1fr);
+}
+body[data-editor=open][data-editor-resizing] main {
+  grid-template-columns: var(--library-width) minmax(0, 1fr);
 }
 .library, .editor { min-width: 0; min-height: 0; padding: 11px var(--gutter) 10px; }
 .library {
@@ -83,16 +86,12 @@ body[data-editor=open] main {
   scrollbar-color: var(--outline) transparent;
   scrollbar-gutter: stable; overscroll-behavior: contain;
 }
-.editor { overflow: hidden; background: var(--work-area); border-inline-start: 1px solid var(--line); }
-.editor .editing { opacity: 1; transform: none; transition: opacity 160ms cubic-bezier(.23, 1, .32, 1), transform 160ms cubic-bezier(.23, 1, .32, 1); }
-body[data-editor-motion=opening] .editing, body[data-editor-motion=closing] .editing { opacity: 0; transform: translateX(6px); }
-[dir=rtl] body[data-editor-motion=opening] .editing, [dir=rtl] body[data-editor-motion=closing] .editing { transform: translateX(-6px); }
-body[data-editor-motion] .editing { min-width: 360px; }
-body[data-editor-motion=closing] .editing { transition-duration: 100ms; }
-body[data-editor=narrow] main { grid-template-columns: minmax(0, 1fr); }
-body[data-editor=narrow] .library { display: none; }
-body[data-editor=narrow] .editor { border-inline-start: 0; }
-@media (prefers-reduced-motion: reduce) { .editor .editing { transition: none; transform: none !important; } }
+.editor { overflow: hidden; padding-inline: 18px; background: var(--work-area); border-inline-start: 1px solid var(--line); }
+@media (width < 650px) {
+  body[data-editor=open]:not([data-editor-resizing]) main { grid-template-columns: minmax(0, 1fr); }
+  body[data-editor=open]:not([data-editor-resizing]) .library { display: none; }
+  body[data-editor=open]:not([data-editor-resizing]) .editor { border-inline-start: 0; }
+}
 .editing {
   height: 100%; display: grid; gap: 6px;
   grid-template-rows: auto auto auto auto auto minmax(72px, 1fr) auto auto;

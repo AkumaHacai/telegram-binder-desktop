@@ -6,12 +6,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using Microsoft.Web.WebView2.Core;
@@ -48,7 +46,7 @@ sealed class Manager : Window
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private const string Origin = "https://binder.local/";
     private const long MaxFile = 96L * 1024 * 1024;
-    private const double CompactWidth = 444, EditorWidth = 790, EditorMinimumWidth = 700;
+    private const double CompactWidth = 444, EditorPaneWidth = 450, EditorMinimumWidth = 700;
     private static bool AcrylicAvailable => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621) && !SystemParameters.HighContrast;
     private readonly string directory = Program.DataDirectory;
     private readonly WebView2CompositionControl web = new();
@@ -60,6 +58,7 @@ sealed class Manager : Window
     private bool acrylic;
     private bool editorOpen;
     private double compactWidth = CompactWidth;
+    private double editorOffset;
     private CoreWebView2? core;
     private string StatePath => Path.Combine(directory, "templates.json");
 
@@ -277,7 +276,7 @@ sealed class Manager : Window
 
     private void Send(object response) => core?.PostWebMessageAsJson(JsonSerializer.Serialize(response, Json));
 
-    private async void Message(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
+    private void Message(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
     {
         if (args.Source != Origin + "index.html") return;
         var id = 0;
@@ -287,14 +286,9 @@ sealed class Manager : Window
             id = message.RootElement.GetProperty("id").GetInt32();
             var method = message.RootElement.GetProperty("method").GetString();
             var data = message.RootElement.GetProperty("value");
-            if (method == "editor")
-            {
-                await ResizeForEditor(data.GetBoolean());
-                Send(new { id, value = (object?)null });
-                return;
-            }
             var result = method switch
             {
+                "editor" => ResizeForEditor(data.GetBoolean()),
                 "preferences" => new { locale = Locale.Current, messages = Locale.Messages },
                 "language" => SetLanguage(data.GetString()),
                 "help" => Locale.ReadResource($"help-{Locale.Current}.md"),
@@ -332,43 +326,62 @@ sealed class Manager : Window
         return Locale.Current;
     }
 
-    private async Task ResizeForEditor(bool open)
+    private double? ResizeForEditor(bool open)
     {
-        if (editorOpen == open) return;
+        if (editorOpen == open) return null;
         editorOpen = open;
         var area = Forms.Screen.FromHandle(handle).WorkingArea;
         var dpi = VisualTreeHelper.GetDpi(this);
         var room = area.Width / dpi.DpiScaleX;
-        MinHeight = open ? Math.Min(540, area.Height / dpi.DpiScaleY) : 390;
+        var minimumHeight = open ? Math.Min(540, area.Height / dpi.DpiScaleY) : 390;
         if (WindowState == WindowState.Maximized)
         {
-            MinWidth = open ? Math.Min(EditorMinimumWidth, room) : 420;
-            return;
-        }
-        if (open) compactWidth = ActualWidth;
-        var from = ActualWidth;
-        var target = Math.Min(room, open ? Math.Max(from, EditorWidth) : compactWidth);
-        if (open)
-        {
-            var right = PointFromScreen(new Point(area.Right, area.Top)).X;
-            if (right < target) Left -= target - right;
-        }
-        MinWidth = 420;
-        BeginAnimation(WidthProperty, null);
-        Width = target;
-        if (SystemParameters.ClientAreaAnimation && Math.Abs(target - from) > 1)
-        {
-            var animation = new DoubleAnimation(from, target, TimeSpan.FromMilliseconds(open ? 260 : 210))
+            if (open)
             {
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }, FillBehavior = FillBehavior.Stop,
-            };
-            var completed = new TaskCompletionSource();
-            animation.Completed += (_, _) => completed.TrySetResult();
-            BeginAnimation(WidthProperty, animation);
-            await Task.WhenAny(completed.Task, Task.Delay(370));
+                compactWidth = RestoreBounds.Width;
+                editorOffset = 0;
+            }
+            MinHeight = minimumHeight;
+            MinWidth = open ? Math.Min(EditorMinimumWidth, room) : 420;
+            return null;
         }
-        if (editorOpen == open) MinWidth = open ? Math.Min(EditorMinimumWidth, room) : 420;
+        if (!GetWindowRect(handle, out var from)) return null;
+        if (open) compactWidth = from.Width / dpi.DpiScaleX;
+        var editorWidth = Math.Max(compactWidth, Math.Min(compactWidth, CompactWidth) + EditorPaneWidth);
+        var width = (int)Math.Round(Math.Min(room, open ? editorWidth : compactWidth) * dpi.DpiScaleX);
+        var height = Math.Max(from.Height, (int)Math.Round(minimumHeight * dpi.DpiScaleY));
+        var left = open ? from.Left : from.Left + (int)Math.Round(editorOffset * dpi.DpiScaleX);
+        if (open && Locale.Current == "fa") left = from.Right - width;
+        left = Math.Clamp(left, area.Left, area.Right - width);
+        if (open) editorOffset = (from.Left - left) / dpi.DpiScaleX;
+        var top = Math.Clamp(from.Top, area.Top, Math.Max(area.Top, area.Bottom - height));
+        var target = new WindowRect(left, top, left + width, top + height);
+        MinWidth = 420;
+        if (from != target)
+        {
+            const uint noZOrder = 0x0004, noActivate = 0x0010, noOwnerZOrder = 0x0200;
+            SetWindowPos(handle, 0, target.Left, target.Top, target.Width, target.Height,
+                noZOrder | noActivate | noOwnerZOrder);
+        }
+        MinHeight = minimumHeight;
+        MinWidth = open ? Math.Min(EditorMinimumWidth, room) : 420;
+        return Math.Max(width / dpi.DpiScaleX, MinWidth);
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly record struct WindowRect(int Left, int Top, int Right, int Bottom)
+    {
+        internal int Width => Right - Left;
+        internal int Height => Bottom - Top;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(nint window, out WindowRect bounds);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y, int width, int height, uint flags);
 
     private object? SaveCatalog(JsonElement data, string? state)
     {

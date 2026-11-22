@@ -521,6 +521,7 @@ let editingId = '';
 let currentVariant = 0;
 let initialDraft = '';
 let editorOpen = false;
+let editorTransition = Promise.resolve();
 let locale = 'ru';
 let messages = {};
 let tipIndex = 0;
@@ -569,29 +570,81 @@ function canDiscardDraft() {
   return JSON.stringify(working) === initialDraft || confirm(t('discard'));
 }
 
-async function showEditor(open) {
+function showEditor(open) {
+  const transition = editorTransition.then(() => setEditorOpen(open));
+  editorTransition = transition.catch(() => {});
+  return transition;
+}
+
+async function setEditorOpen(open) {
   if (editorOpen === open) return;
+  const { style, dataset } = document.body;
   if (open) {
-    document.body.style.setProperty('--closed-width', Math.min(window.innerWidth, 490) + 'px');
-    document.body.dataset.editor = 'open';
-    ui.editor.hidden = false;
+    const paneWidth = 450;
+    const room = window.screen.availWidth || window.innerWidth;
+    const libraryWidth = Math.min(window.innerWidth, 444, Math.max(274, room - paneWidth));
+    style.setProperty('--library-width', libraryWidth + 'px');
+    dataset.editorResizing = '';
+    dataset.editor = 'open';
   }
-  document.body.dataset.editorMotion = open ? 'opening' : 'closing';
-  ui.editor.inert = !open;
+  ui.editor.inert = true;
   try {
-    await request('editor', open);
-  } catch (error) {
+    if (!open) {
+      const motion = await animateEditor(false);
+      const libraryWidth = ui.list.closest('.library').offsetWidth;
+      if (libraryWidth > 0) {
+        style.setProperty('--library-width', libraryWidth + 'px');
+        dataset.editorResizing = '';
+      }
+      ui.editor.hidden = true;
+      motion?.cancel();
+    }
+    const width = await request('editor', open);
+    editorOpen = open;
+    await waitForEditorWidth(width);
+    if (open) {
+      delete dataset.editorResizing;
+      ui.editor.hidden = false;
+      const motion = await animateEditor(true);
+      motion?.cancel();
+    }
+  } finally {
+    delete dataset.editorResizing;
     ui.editor.hidden = !editorOpen;
     ui.editor.inert = !editorOpen;
-    document.body.dataset.editor = editorOpen ? 'open' : 'closed';
-    throw error;
-  } finally {
-    delete document.body.dataset.editorMotion;
+    dataset.editor = editorOpen ? 'open' : 'closed';
+    ui.addCommand.setAttribute('aria-expanded', String(editorOpen));
   }
-  editorOpen = open;
-  ui.editor.hidden = !open;
-  document.body.dataset.editor = open ? (window.innerWidth < 650 ? 'narrow' : 'open') : 'closed';
-  ui.addCommand.setAttribute('aria-expanded', String(open));
+}
+
+function waitForEditorWidth(width) {
+  if (!Number.isFinite(width) || Math.abs(window.innerWidth - width) <= 1) return;
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', check);
+      resolve();
+    };
+    const check = () => {
+      if (Math.abs(window.innerWidth - width) <= 1) finish();
+    };
+    const timeout = setTimeout(finish, 120);
+    window.addEventListener('resize', check);
+  });
+}
+
+async function animateEditor(open) {
+  if (!ui.editor.animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const distance = document.dir === 'rtl' ? -32 : 32;
+  const outside = { opacity: 0, transform: `translateX(${distance}px)` };
+  const inside = { opacity: 1, transform: 'translateX(0)' };
+  const motion = ui.editor.animate(open ? [outside, inside] : [inside, outside], {
+    duration: open ? 190 : 125,
+    easing: open ? 'cubic-bezier(.23, 1, .32, 1)' : 'ease-in',
+    fill: 'both',
+  });
+  await motion.finished;
+  return motion;
 }
 
 function renderHelp(markdown) {
