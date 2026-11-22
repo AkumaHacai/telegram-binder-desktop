@@ -23,6 +23,10 @@
   scrollbar-color: var(--outline) transparent;
 }
 * { box-sizing: border-box; }
+:root[data-backdrop=acrylic] { --surface: #161a2066; }
+@media (prefers-color-scheme: light) {
+  :root[data-backdrop=acrylic] { --surface: #161a20cf; }
+}
 html, body { margin: 0; height: 100%; overflow: hidden; }
 ::selection { color: var(--on-accent); background: var(--accent); }
 .shell {

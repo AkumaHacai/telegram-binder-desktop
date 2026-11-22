@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -40,6 +41,7 @@ sealed class Manager : Window
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private const string Origin = "https://binder.local/";
     private const long MaxFile = 96L * 1024 * 1024;
+    private static bool AcrylicAvailable => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621) && !SystemParameters.HighContrast;
     private readonly string directory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TelegramBinderDesktop");
     private readonly WebView2CompositionControl web = new();
@@ -49,6 +51,7 @@ sealed class Manager : Window
     private DesktopInput? input;
     private nint handle;
     private bool exiting;
+    private bool acrylic;
     private CoreWebView2? core;
     private string StatePath => Path.Combine(directory, "templates.json");
 
@@ -66,13 +69,13 @@ sealed class Manager : Window
         MinHeight = 450;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         WindowStyle = WindowStyle.None;
-        AllowsTransparency = true;
+        AllowsTransparency = !AcrylicAvailable;
         Background = Brushes.Transparent;
         WindowChrome.SetWindowChrome(this, new WindowChrome
         {
             CaptionHeight = 0,
             ResizeBorderThickness = new Thickness(6),
-            GlassFrameThickness = new Thickness(0),
+            GlassFrameThickness = AcrylicAvailable ? WindowChrome.GlassFrameCompleteThickness : new Thickness(0),
             UseAeroCaptionButtons = false,
         });
         web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
@@ -119,9 +122,20 @@ sealed class Manager : Window
     {
         base.OnSourceInitialized(e);
         handle = new WindowInteropHelper(this).Handle;
+        if (AcrylicAvailable)
+        {
+            const int darkMode = 20, cornerPreference = 33, systemBackdropType = 38;
+            DwmSetWindowAttribute(handle, darkMode, 1, sizeof(int));
+            DwmSetWindowAttribute(handle, cornerPreference, 2, sizeof(int));
+            acrylic = DwmSetWindowAttribute(handle, systemBackdropType, 3, sizeof(int)) == 0;
+            if (!acrylic) Background = new SolidColorBrush(Color.FromRgb(22, 26, 32));
+        }
         // WPF runs the most recently added hook first, so the caption can override WindowChrome.
         HwndSource.FromHwnd(handle).AddHook(CaptionHitTest);
     }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(nint window, int attribute, in int value, int size);
 
     private nint CaptionHitTest(nint window, int message, nint wParam, nint lParam, ref bool handled)
     {
@@ -147,6 +161,9 @@ sealed class Manager : Window
             var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: profile);
             await web.EnsureCoreWebView2Async(environment);
             core = web.CoreWebView2;
+            if (acrylic)
+                await core.AddScriptToExecuteOnDocumentCreatedAsync(
+                    "document.addEventListener('DOMContentLoaded', () => document.documentElement.dataset.backdrop = 'acrylic');");
             core.Settings.AreDevToolsEnabled = false;
             core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.AreBrowserAcceleratorKeysEnabled = false;
@@ -175,7 +192,6 @@ sealed class Manager : Window
                     : environment.CreateWebResourceResponse(Stream.Null, 403, "Forbidden", "");
             };
             core.NavigationStarting += (_, args) => args.Cancel = args.Uri != Origin + "index.html";
-            core.NavigationCompleted += (_, args) => aboutMenu.Enabled = args.IsSuccess;
             core.NewWindowRequested += (_, args) => args.Handled = true;
             core.WebMessageReceived += Message;
             input = new(handle, Dispatcher, Report, reply =>
@@ -215,7 +231,7 @@ sealed class Manager : Window
             var data = message.RootElement.GetProperty("value");
             var result = method switch
             {
-                "load" => File.Exists(StatePath) ? ReadFile(StatePath) : null,
+                "load" => LoadManager(),
                 "ready" => SaveCatalog(data, null),
                 "save" => SaveCatalog(data.GetProperty("catalog"), data.GetProperty("state").GetRawText()),
                 "import" => Import(),
@@ -233,6 +249,12 @@ sealed class Manager : Window
         {
             Send(new { id, error = e.Message });
         }
+    }
+
+    private string? LoadManager()
+    {
+        aboutMenu.Enabled = true;
+        return File.Exists(StatePath) ? ReadFile(StatePath) : null;
     }
 
     private object? SaveCatalog(JsonElement data, string? state)
