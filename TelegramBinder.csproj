@@ -15,6 +15,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
     <EmbeddedResource Include="Web\*" />
-    <Resource Include="Assets\*.ico" />
+    <Resource Include="Assets\*" />
   </ItemGroup>
 </Project>

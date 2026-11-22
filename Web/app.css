@@ -118,18 +118,6 @@ button.favorite { color: var(--favorite); background: transparent; border-color:
 .empty { margin: 12px 0; }
 .status { border-top: 1px solid var(--line); background: var(--work-area); padding: 5px var(--gutter); }
 .status[data-error=true] { color: var(--danger); }
-.about {
-  width: min(310px, calc(100% - 32px)); padding: 14px;
-  color: var(--text); background: #20262e;
-  border: 1px solid var(--outline); border-radius: 10px;
-}
-.about::backdrop { background: #10151b80; }
-.about img {
-  display: block; width: 100%; height: auto; padding: 15px;
-  background: #f5f8fd; border-radius: 6px;
-}
-.about-version { margin: 11px 0; color: var(--muted); }
-.about form { text-align: right; }
 @media (max-width: 595px) {
   main { grid-template-columns: minmax(0, 1fr); align-content: start; }
   .library { border-right: 0; border-bottom: 1px solid var(--line); }

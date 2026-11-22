@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -46,7 +47,6 @@ sealed class Manager : Window
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TelegramBinderDesktop");
     private readonly WebView2CompositionControl web = new();
     private readonly Forms.NotifyIcon tray = new();
-    private readonly Forms.ToolStripMenuItem aboutMenu = new("О программе") { Enabled = false };
     private readonly System.Drawing.Icon trayLogo;
     private DesktopInput? input;
     private nint handle;
@@ -97,12 +97,7 @@ sealed class Manager : Window
         };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Открыть Telegram Binder", null, (_, _) => OpenManager());
-        aboutMenu.Click += (_, _) =>
-        {
-            OpenManager();
-            Send(new { @event = "about", value = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) });
-        };
-        menu.Items.Add(aboutMenu);
+        menu.Items.Add("О программе", null, (_, _) => OpenAbout());
         menu.Items.Add("Выход", null, (_, _) => { exiting = true; Close(); });
         tray.ContextMenuStrip = menu;
         tray.Icon = trayLogo;
@@ -116,6 +111,38 @@ sealed class Manager : Window
         Show();
         WindowState = WindowState.Normal;
         Activate();
+    }
+
+    private void OpenAbout()
+    {
+        OpenManager();
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3);
+        var content = new StackPanel { Margin = new Thickness(14) };
+        var logo = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/brand-wordmark.png"));
+        content.Children.Add(new Border
+        {
+            Padding = new Thickness(16),
+            Background = new SolidColorBrush(Color.FromRgb(245, 248, 253)),
+            CornerRadius = new CornerRadius(6),
+            Child = new Image { Source = logo, Height = 96, Stretch = Stretch.Uniform },
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = $"Версия {version}", Foreground = Brushes.White,
+            Margin = new Thickness(0, 12, 0, 12),
+        });
+        content.Children.Add(new Button
+        {
+            Content = "Закрыть", IsCancel = true, MinWidth = 80, Height = 28,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        });
+        new Window
+        {
+            Title = "О программе Telegram Binder", Owner = this, ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, WindowStyle = WindowStyle.ToolWindow,
+            ResizeMode = ResizeMode.NoResize, SizeToContent = SizeToContent.Height, Width = 320,
+            Background = new SolidColorBrush(Color.FromRgb(32, 38, 46)), Content = content,
+        }.ShowDialog();
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -178,7 +205,6 @@ sealed class Manager : Window
                     Origin + "app.css" => ("app.css", "text/css"),
                     Origin + "app.js" => ("app.js", "text/javascript"),
                     Origin + "brand-mark.png" => ("brand-mark.png", "image/png"),
-                    Origin + "brand-wordmark.png" => ("brand-wordmark.png", "image/png"),
                     _ => ("", ""),
                 };
                 var data = resource.Item1.Length > 0
@@ -231,7 +257,7 @@ sealed class Manager : Window
             var data = message.RootElement.GetProperty("value");
             var result = method switch
             {
-                "load" => LoadManager(),
+                "load" => File.Exists(StatePath) ? ReadFile(StatePath) : null,
                 "ready" => SaveCatalog(data, null),
                 "save" => SaveCatalog(data.GetProperty("catalog"), data.GetProperty("state").GetRawText()),
                 "import" => Import(),
@@ -251,11 +277,6 @@ sealed class Manager : Window
         }
     }
 
-    private string? LoadManager()
-    {
-        aboutMenu.Enabled = true;
-        return File.Exists(StatePath) ? ReadFile(StatePath) : null;
-    }
 
     private object? SaveCatalog(JsonElement data, string? state)
     {
