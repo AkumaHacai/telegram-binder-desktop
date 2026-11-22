@@ -1,6 +1,6 @@
 # Telegram Binder
 
-[Русский](README.ru.md)
+[Русский](README.ru.md) · [简体中文](README.zh.md) · [فارسی](README.fa.md)
 
 Save replies and insert them into Telegram Desktop with short commands such as `/reply`. The app replaces the command in your draft. You send the message from Telegram.
 
