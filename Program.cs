@@ -160,9 +160,11 @@ sealed class Manager : Window
         handle = new WindowInteropHelper(this).Handle;
         if (AcrylicAvailable)
         {
-            const int darkMode = 20, cornerPreference = 33, systemBackdropType = 38;
+            const int darkMode = 20, cornerPreference = 33, borderColor = 34, systemBackdropType = 38;
+            const int noBorderColor = -2;
             DwmSetWindowAttribute(handle, darkMode, 1, sizeof(int));
             DwmSetWindowAttribute(handle, cornerPreference, 2, sizeof(int));
+            DwmSetWindowAttribute(handle, borderColor, noBorderColor, sizeof(int));
             acrylic = DwmSetWindowAttribute(handle, systemBackdropType, 3, sizeof(int)) == 0;
             if (acrylic) KeepBackdropAppearance();
             if (!acrylic) Background = new SolidColorBrush(Color.FromRgb(22, 26, 32));

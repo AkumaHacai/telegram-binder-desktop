@@ -32,9 +32,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
 ::selection { color: var(--on-accent); background: var(--accent); }
 .shell {
   height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
-  overflow: hidden; border: 1px solid var(--outline); border-radius: 12px;
+  overflow: hidden; border-radius: 12px;
   background: var(--surface);
 }
+:root[data-backdrop=acrylic] .shell,
 body[data-maximized=true] .shell { border-radius: 0; }
 .masthead {
   direction: ltr;
@@ -78,7 +79,7 @@ body[data-editor=open] main {
   background: var(--sidebar);
 }
 .list {
-  min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  min-height: 0; overflow: hidden auto; scrollbar-width: thin;
   scrollbar-color: var(--outline) transparent;
   scrollbar-gutter: stable; overscroll-behavior: contain;
 }
@@ -133,9 +134,10 @@ button.favorite { color: var(--favorite); background: transparent; border-color:
 .import-row { margin: 9px 0 5px; }
 .import-row button.ghost { color: var(--muted); }
 .count { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.bind { border-top: 1px solid var(--line); padding: 6px 0; display: grid; gap: 3px; }
+.bind { border-top: 1px solid var(--line); padding: 6px 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 .bind-meta, .bind-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.bind-command { font-size: 13px; color: var(--accent); overflow-wrap: anywhere; }
+.bind-meta { overflow-wrap: anywhere; }
+.bind-command { font-size: 13px; color: var(--accent); }
 .bind-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bind-actions button { font-size: 12px; padding-block: 3px; }
 .bind-actions input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0 2px; }
@@ -169,7 +171,7 @@ dialog::backdrop { background: #11161e8c; }
 .help-content ul { padding-inline-start: 20px; }
 .help-content li { margin-block: 5px; }
 @media (forced-colors: active) {
-  .shell { background: Canvas; border-color: CanvasText; }
+  .shell { background: Canvas; border: 1px solid CanvasText; }
   .window-actions button { border: 1px solid ButtonText; }
   .window-actions .minimize::before, .window-actions .hide::before, .window-actions .hide::after { forced-color-adjust: none; background: ButtonText; }
 }

@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>Telegram Binder</AssemblyName>
     <RootNamespace>TelegramBinder</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <ApplicationIcon>Assets\TelegramBinder.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
