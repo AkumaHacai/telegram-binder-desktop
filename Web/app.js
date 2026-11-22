@@ -137,12 +137,12 @@
 
   function normalizeContent(value) {
     const text = typeof value?.text === 'string' ? value.text.replace(/\r\n?/g, '\n') : '';
-    if (text.length > MAX_LENGTH) throw new Error('Слишком длинный текст (максимум 20 000 символов).');
+    if (text.length > MAX_LENGTH) throw new Error(t('tooLong'));
     const content = plainContent(text);
     if (typeof value?.html === 'string' && value.html) {
-      if (value.html.length > MAX_LENGTH * 10) throw new Error('Слишком большой HTML шаблона.');
+      if (value.html.length > MAX_LENGTH * 10) throw new Error(t('tooMuchHtml'));
       const clean = parseHtml(value.html);
-      if (clean.text !== text) throw new Error('Текст и форматирование в JSON не совпадают.');
+      if (clean.text !== text) throw new Error(t('htmlMismatch'));
       content.html = clean.html;
     }
     if (value?.desktopTags !== undefined) content.desktopTags = checkedTags(value.desktopTags, text);
@@ -150,10 +150,10 @@
   }
 
   function normalizeTemplate(raw) {
-    if (!raw || !COMMAND_RE.test(normalizedCommand(raw.command))) throw new Error('Некорректная команда.');
+    if (!raw || !COMMAND_RE.test(normalizedCommand(raw.command))) throw new Error(t('invalidCommand'));
     const variants = raw.variants;
     if (!Array.isArray(variants) || variants.length === 0 || variants.length > MAX_VARIANTS) {
-      throw new Error('Шаблон должен содержать 1–16 вариантов.');
+      throw new Error(t('invalidVariants'));
     }
     return {
       id: typeof raw.id === 'string' && raw.id.length <= 100 ? raw.id : newId(),
@@ -164,10 +164,10 @@
       enabled: raw.enabled !== false,
       variants: variants.map((variant) => {
         const content = normalizeContent(variant.content || plainContent(variant.text));
-        if (!content.text.trim()) throw new Error('Пустой текст варианта.');
+        if (!content.text.trim()) throw new Error(t('emptyVariant'));
         return {
           id: typeof variant.id === 'string' && variant.id.length <= 100 ? variant.id : newId(),
-          label: String(variant.label || 'Основной').slice(0, 80),
+          label: String(variant.label || t('defaultVariant')).slice(0, 80),
           content,
         };
       }),
@@ -177,12 +177,12 @@
   function normalizeState(raw) {
     if (!raw || raw.version !== 2 || !Array.isArray(raw.templates)
       || !Array.isArray(raw.folders) || raw.templates.length > MAX_TEMPLATES
-      || raw.folders.length > MAX_FOLDERS) throw new Error('Неверный формат данных v2.');
+      || raw.folders.length > MAX_FOLDERS) throw new Error(t('invalidData'));
     const templateNames = new Set();
     const folderNames = new Set();
     const folders = raw.folders.map((folder) => {
       const label = String(folder.name || '').trim().slice(0, 50);
-      if (!label || folderNames.has(label.toLowerCase())) throw new Error('Некорректная папка.');
+      if (!label || folderNames.has(label.toLowerCase())) throw new Error(t('invalidFolder'));
       folderNames.add(label.toLowerCase());
       return { id: String(folder.id || newId()).slice(0, 100), name: label };
     });
@@ -190,7 +190,7 @@
     const templates = raw.templates.map((value) => {
       const template = normalizeTemplate(value);
       const name = commandName(template.command);
-      if (templateNames.has(name)) throw new Error(`Повтор команды ${template.command}.`);
+      if (templateNames.has(name)) throw new Error(t('repeatedCommand', { name: template.command }));
       templateNames.add(name);
       if (!ids.has(template.folderId)) template.folderId = '';
       return template;
@@ -203,23 +203,27 @@
       version: 2, folders: [],
       templates: [{ id: 'sample-support', command: '/сап', description: 'Ответ технической поддержки',
         folderId: '', favorite: true, enabled: true,
-        variants: [{ id: 'sample-main', label: 'Основной', content: plainContent(
+        variants: [{ id: 'sample-main', label: t('defaultVariant'), content: plainContent(
           'Сейчас поддержка перегружена обращениями по смене IP-адресов. Вы можете дождаться ответа либо закрыть тикет и воспользоваться разделом «Администрирование».') }] }],
     };
   }
   function renderFolders() {
     const selected = ui.filter.value;
-    ui.filter.replaceChildren(new Option('Все шаблоны', 'all'), new Option('★ Избранное', 'favorites'),
+    ui.filter.replaceChildren(new Option(t('all'), 'all'), new Option(t('favorites'), 'favorites'),
       ...state.folders.map((f) => new Option(f.name, f.id)));
     ui.filter.value = [...ui.filter.options].some((opt) => opt.value === selected) ? selected : 'all';
     const selection = ui.folder.value;
-    ui.folder.replaceChildren(new Option('Без папки', ''), ...state.folders.map((f) => new Option(f.name, f.id)));
+    ui.folder.replaceChildren(new Option(t('noFolder'), ''), ...state.folders.map((f) => new Option(f.name, f.id)));
     ui.folder.value = [...ui.folder.options].some((opt) => opt.value === selection) ? selection : '';
+    const managed = ui.folderManager.value;
+    ui.folderManager.replaceChildren(new Option(t('selectFolder'), ''), ...state.folders.map((f) => new Option(f.name, f.id)));
+    ui.folderManager.value = state.folders.some((f) => f.id === managed) ? managed : '';
+    ui.deleteFolder.disabled = !ui.folderManager.value;
   }
 
   function getWorkingDefault() {
     return { id: newId(), command: '', description: '', folderId: '', favorite: false, enabled: true,
-      variants: [{ id: newId(), label: 'Основной', content: plainContent('') }] };
+      variants: [{ id: newId(), label: t('defaultVariant'), content: plainContent('') }] };
   }
 
   function syncVariant() {
@@ -229,7 +233,7 @@
     working.folderId = ui.folder.value;
     const variant = working.variants[currentVariant];
     if (!variant) return;
-    variant.label = ui.variantLabel.value.trim() || 'Основной';
+    variant.label = ui.variantLabel.value.trim() || t('defaultVariant');
     const newText = ui.message.value.replace(/\r\n?/g, '\n');
     if (variant.content.text !== newText) variant.content = plainContent(newText);
   }
@@ -240,7 +244,7 @@
     ui.description.value = working.description;
     ui.folder.value = working.folderId;
     ui.variants.replaceChildren(...working.variants.map((variant, index) => new Option(
-      `${index + 1}. ${variant.label || 'Основной'}`, String(index))));
+      `${index + 1}. ${variant.label || t('defaultVariant')}`, String(index))));
     ui.variants.value = String(currentVariant);
     const variant = working.variants[currentVariant];
     ui.variantLabel.value = variant.label;
@@ -248,46 +252,52 @@
     const customCount = (variant.content.desktopTags || desktopTags(variant.content))
       .filter((tag) => tag.id.includes('custom-emoji://')).length;
     ui.richState.textContent = variant.content.html || variant.content.desktopTags?.length
-      ? `Сохранено оформление${customCount ? ` · кастомных эмодзи: ${customCount}` : ''}`
-      : 'Обычный текст';
+      ? [t('formatting'), customCount && t('emojiCount', { n: customCount })].filter(Boolean).join(' · ')
+      : t('plain');
     ui.removeVariant.disabled = working.variants.length === 1;
-    ui.formTitle.textContent = editingId ? 'Изменение команды' : 'Новая команда';
-    ui.save.textContent = editingId ? 'Сохранить изменения' : 'Создать команду';
+    ui.formTitle.textContent = editingId ? t('editCommand') : t('newCommand');
+    ui.save.textContent = editingId ? t('saveChanges') : t('createCommand');
   }
 
   function resetForm() {
     editingId = '';
     currentVariant = 0;
     working = getWorkingDefault();
+    initialDraft = JSON.stringify(working);
     renderWorking();
   }
 
-  function editTemplate(template) {
-    editingId = template.id;
+  async function editTemplate(template) {
+    if (!canDiscardDraft()) return;
+    editingId = template?.id || '';
     currentVariant = 0;
-    working = structuredClone(template);
+    working = template ? structuredClone(template) : getWorkingDefault();
+    initialDraft = JSON.stringify(working);
     renderWorking();
+    await showEditor(true);
     ui.command.focus();
   }
 
   async function saveForm(event) {
     event.preventDefault();
     syncVariant();
-    if (!COMMAND_RE.test(working.command)) return notify('Начни команду с точки, ! или /. После префикса можно использовать 1–32 буквы, цифры, _ или -.', true);
+    if (!COMMAND_RE.test(working.command)) return notify(t('commandRules'), true);
     const name = commandName(working.command);
-    if (state.templates.some((t) => t.id !== editingId && commandName(t.command) === name)) return notify('Такая команда уже существует.', true);
-    if (working.variants.some((v) => !v.content.text.trim() || v.content.text.length > MAX_LENGTH)) return notify('Каждый вариант должен содержать от 1 до 20 000 символов.', true);
-    if (!editingId && state.templates.length >= MAX_TEMPLATES) return notify('Достигнут предел 300 команд.', true);
+    if (state.templates.some((t) => t.id !== editingId && commandName(t.command) === name)) return notify(t('duplicateCommand'), true);
+    if (working.variants.some((v) => !v.content.text.trim() || v.content.text.length > MAX_LENGTH)) return notify(t('replyLength'), true);
+    if (!editingId && state.templates.length >= MAX_TEMPLATES) return notify(t('maxCommands'), true);
     const next = structuredClone(state);
     if (editingId) {
       const index = state.templates.findIndex((t) => t.id === editingId);
-      if (index < 0) return notify('Команда была удалена в другой вкладке.', true);
+      if (index < 0) return notify(t('missingCommand'), true);
       const { favorite, enabled } = state.templates[index];
       next.templates[index] = normalizeTemplate({ ...working, favorite, enabled });
     } else next.templates.push(normalizeTemplate(working));
     await persist(next);
     resetForm();
-    notify('Шаблон сохранён.');
+    await showEditor(false);
+    ui.addCommand.focus();
+    notify(t('saved'));
   }
 
   function renderTemplates() {
@@ -300,13 +310,13 @@
       if (filter !== 'all' && filter !== 'favorites' && t.folderId !== filter) return false;
       return !query || commandName(t.command).includes(nameQuery) || t.description.toLowerCase().includes(query)
         || t.variants.some((variant) => variant.content.text.toLowerCase().includes(query));
-    }).sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.command.localeCompare(b.command, 'ru'));
-    ui.count.textContent = `${templates.length} из ${state.templates.length}`;
+    }).sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.command.localeCompare(b.command, locale));
+    ui.count.textContent = t('count', { visible: templates.length, total: state.templates.length });
     ui.list.replaceChildren();
     if (!templates.length) {
       const blank = document.createElement('p');
       blank.className = 'empty';
-      blank.textContent = 'Шаблоны не найдены.';
+      blank.textContent = t('notFound');
       ui.list.appendChild(blank);
       return;
     }
@@ -319,11 +329,12 @@
       heading.className = 'bind-meta';
       const command = document.createElement('code');
       command.className = 'bind-command';
+      command.dir = 'ltr';
       command.textContent = template.command;
       const folder = state.folders.find((f) => f.id === template.folderId);
       const extras = document.createElement('span');
       extras.className = 'meta-detail';
-      extras.textContent = [folder?.name, template.variants.length > 1 ? `${template.variants.length} варианта` : null]
+      extras.textContent = [folder?.name, template.variants.length > 1 ? t('variantCount', { n: template.variants.length }) : null]
         .filter(Boolean).join(' · ');
       heading.append(command, extras);
       const content = document.createElement('p');
@@ -336,14 +347,14 @@
       fav.type = 'button';
       fav.className = 'favorite';
       fav.textContent = template.favorite ? '★' : '☆';
-      fav.title = template.favorite ? 'Убрать из избранного' : 'В избранное';
+      fav.title = template.favorite ? t('unfavorite') : t('favorite');
       fav.setAttribute('aria-label', fav.title);
       fav.addEventListener('click', action(() => updateTemplate(template.id, { favorite: !template.favorite })));
       const toggle = document.createElement('input');
       toggle.type = 'checkbox';
       toggle.checked = template.enabled;
-      toggle.title = 'Включить или выключить команду';
-      toggle.setAttribute('aria-label', `Включить ${template.command}`);
+      toggle.title = t('toggle');
+      toggle.setAttribute('aria-label', t('enableCommand', { name: template.command }));
       toggle.addEventListener('change', action(async () => {
         const enabled = toggle.checked;
         toggle.checked = template.enabled;
@@ -352,16 +363,16 @@
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'ghost';
-      edit.textContent = 'Изменить';
-      edit.addEventListener('click', () => editTemplate(template));
+      edit.textContent = t('edit');
+      edit.addEventListener('click', action(() => editTemplate(template)));
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'danger';
-      remove.textContent = 'Удалить';
+      remove.textContent = t('delete');
       remove.addEventListener('click', action(async () => {
-        if (!confirm(`Удалить команду ${template.command}?`)) return;
+        if (!confirm(t('confirmDelete', { name: template.command }))) return;
         await persist({ ...state, templates: state.templates.filter((t) => t.id !== template.id) });
-        if (editingId === template.id) resetForm();
+        if (editingId === template.id) { resetForm(); await showEditor(false); }
       }));
       actions.append(fav, toggle, edit, remove);
       row.append(description, actions);
@@ -376,29 +387,30 @@
   }
 
   async function newFolder() {
-    const name = prompt('Название папки (до 50 символов):');
+    const name = prompt(t('folderName'));
     if (name === null) return;
     const clean = name.trim().slice(0, 50);
-    if (!clean) return notify('Название папки не может быть пустым.', true);
-    if (state.folders.some((folder) => folder.name.toLowerCase() === clean.toLowerCase())) return notify('Такая папка уже существует.', true);
-    if (state.folders.length >= MAX_FOLDERS) return notify('Максимум 50 папок.', true);
+    if (!clean) return notify(t('emptyFolder'), true);
+    if (state.folders.some((folder) => folder.name.toLowerCase() === clean.toLowerCase())) return notify(t('duplicateFolder'), true);
+    if (state.folders.length >= MAX_FOLDERS) return notify(t('maxFolders'), true);
     const folder = { id: newId(), name: clean };
     await persist({ ...state, folders: [...state.folders, folder] });
-    ui.folder.value = folder.id;
-    notify('Папка создана.');
+    ui.folderManager.value = folder.id;
+    ui.deleteFolder.disabled = false;
+    notify(t('folderCreated'));
   }
 
   async function deleteFolder() {
-    const id = ui.filter.value;
+    const id = ui.folderManager.value;
     const folder = state.folders.find((item) => item.id === id);
-    if (!folder) return notify('Сначала выбери папку в фильтре.', true);
-    if (!confirm(`Удалить папку «${folder.name}»? Команды останутся без папки.`)) return;
+    if (!folder) return notify(t('selectFolder'), true);
+    if (!confirm(t('confirmDeleteFolder', { name: folder.name }))) return;
     await persist({ ...state,
       folders: state.folders.filter((item) => item.id !== id),
       templates: state.templates.map((template) => template.folderId === id ? { ...template, folderId: '' } : template),
     });
     if (working?.folderId === id) working.folderId = '';
-    notify('Папка удалена; команды сохранены.');
+    notify(t('folderDeleted'));
   }
 
 function marked(part, id) {
@@ -425,16 +437,16 @@ const isTag = (id) => inlineTags.has(id) || id === '>' || id === '>^'
   || /^```[\w+-]{1,60}$/.test(id) || emojiTag.test(id) || !!safeUrl(id);
 
 function checkedTags(tags, text, capture = false) {
-  if (!Array.isArray(tags) || tags.length > text.length) throw new Error('Некорректное оформление Telegram.');
+  if (!Array.isArray(tags) || tags.length > text.length) throw new Error(t('invalidTags'));
   let end = 0;
   return tags.map(({ offset, length, id }) => {
     if (!Number.isInteger(offset) || !Number.isInteger(length) || offset < end
       || length <= 0 || offset + length > text.length || typeof id !== 'string' || id.length > 4096) {
-      throw new Error('Некорректное оформление Telegram.');
+      throw new Error(t('invalidTags'));
     }
     end = offset + length;
     const parts = id.split('\\');
-    if (!capture && !parts.every(isTag)) throw new Error('Неизвестный тег Telegram.');
+    if (!capture && !parts.every(isTag)) throw new Error(t('unknownTag'));
     return { offset, length, id: parts.filter(isTag).join('\\') };
   }).filter((tag) => tag.id);
 }
@@ -474,7 +486,7 @@ function desktopTags(content) {
 
 function fromClipboard(value) {
   const text = value.text.replace(/\r\n?/g, '\n');
-  if (!text.trim() || text.length > MAX_LENGTH) throw new Error('Нужен текст от 1 до 20 000 символов.');
+  if (!text.trim() || text.length > MAX_LENGTH) throw new Error(t('replyLength'));
   if (!value.tags.length) return plainContent(text);
   const tags = checkedTags(value.tags, text, true);
   const escaped = (text) => esc(text).replace(/\n/g, '<br>');
@@ -507,6 +519,20 @@ let state;
 let working;
 let editingId = '';
 let currentVariant = 0;
+let initialDraft = '';
+let editorOpen = false;
+let locale = 'ru';
+let messages = {};
+let tipIndex = 0;
+let statusTimer;
+const locales = ['ru', 'en', 'zh', 'fa'];
+const tipKeys = ['tipCommand', 'tipCapture', 'tipSearch', 'tipSuggest'];
+
+function t(key, values = {}) {
+  const line = messages[key]?.[locales.indexOf(locale)] ?? messages[key]?.[0] ?? key;
+  return line.replace(/\{(\w+)\}/g, (token, name) => String(values[name] ?? token));
+}
+
 const field = (selector) => document.querySelector(selector);
 const ui = Object.fromEntries(Object.entries({
   form: '.editing', formTitle: '.form-title', command: '.command', folder: '.folder',
@@ -515,10 +541,85 @@ const ui = Object.fromEntries(Object.entries({
   capture: '.capture', copyRich: '.copy-rich', message: '.message', save: '.save', reset: '.reset',
   search: '.search', filter: '.filter', addFolder: '.add-folder', deleteFolder: '.delete-folder',
   count: '.count', list: '.list', export: '.export', import: '.import', status: '.status', hide: '.hide',
+  editor: '.editor', addCommand: '.add-command', cancelEdit: '.cancel-edit', settings: '.settings-dialog',
+  language: '.language', folderManager: '.folder-manager', folderStatus: '.folder-status', tip: '.tip',
+  help: '.help-dialog', helpContent: '.help-content',
 }).map(([key, selector]) => [key, field(selector)]));
 
+function renderLocale() {
+  document.documentElement.lang = locale === 'zh' ? 'zh-Hans' : locale;
+  document.documentElement.dir = locale === 'fa' ? 'rtl' : 'ltr';
+  ui.language.value = locale;
+  for (const el of document.querySelectorAll('[data-text]')) el.textContent = t(el.dataset.text);
+  for (const el of document.querySelectorAll('[data-label]')) {
+    el.title = t(el.dataset.label);
+    el.setAttribute('aria-label', el.title);
+  }
+  for (const el of document.querySelectorAll('[data-placeholder]')) el.placeholder = t(el.dataset.placeholder);
+  updateMaximized(document.body.dataset.maximized === 'true');
+  ui.tip.textContent = t(tipKeys[tipIndex]);
+  ui.status.hidden = true;
+  ui.tip.hidden = false;
+  ui.folderStatus.hidden = true;
+}
+
+function canDiscardDraft() {
+  if (!editorOpen) return true;
+  syncVariant();
+  return JSON.stringify(working) === initialDraft || confirm(t('discard'));
+}
+
+async function showEditor(open) {
+  if (editorOpen === open) return;
+  if (open) {
+    document.body.style.setProperty('--closed-width', Math.min(window.innerWidth, 490) + 'px');
+    document.body.dataset.editor = 'open';
+    ui.editor.hidden = false;
+  }
+  document.body.dataset.editorMotion = open ? 'opening' : 'closing';
+  ui.editor.inert = !open;
+  try {
+    await request('editor', open);
+  } catch (error) {
+    ui.editor.hidden = !editorOpen;
+    ui.editor.inert = !editorOpen;
+    document.body.dataset.editor = editorOpen ? 'open' : 'closed';
+    throw error;
+  } finally {
+    delete document.body.dataset.editorMotion;
+  }
+  editorOpen = open;
+  ui.editor.hidden = !open;
+  document.body.dataset.editor = open ? (window.innerWidth < 650 ? 'narrow' : 'open') : 'closed';
+  ui.addCommand.setAttribute('aria-expanded', String(open));
+}
+
+function renderHelp(markdown) {
+  const sections = [];
+  let list = null;
+  for (const line of markdown.split(/\r?\n/)) {
+    if (line.startsWith('- ')) {
+      if (!list) {
+        list = document.createElement('ul');
+        sections.push(list);
+      }
+      const item = document.createElement('li');
+      item.textContent = line.slice(2);
+      list.append(item);
+      continue;
+    }
+    list = null;
+    if (!line.trim()) continue;
+    const heading = /^#{1,3} /.test(line);
+    const el = document.createElement(heading ? 'h3' : 'p');
+    el.textContent = heading ? line.replace(/^#+ /, '') : line;
+    sections.push(el);
+  }
+  ui.helpContent.replaceChildren(...sections);
+}
+
 function request(method, value) {
-  if (!webview) return Promise.reject(new Error('Откройте Telegram Binder.exe.'));
+  if (!webview) return Promise.reject(new Error(t('openExe')));
   return new Promise((resolve, reject) => {
     const id = ++sequence;
     waiting.set(id, { resolve, reject });
@@ -527,8 +628,21 @@ function request(method, value) {
 }
 
 function notify(message, error = false) {
+  if (ui.settings.open) {
+    ui.folderStatus.textContent = message;
+    ui.folderStatus.hidden = false;
+    ui.folderStatus.dataset.error = String(error);
+    return;
+  }
+  clearTimeout(statusTimer);
   ui.status.textContent = message;
   ui.status.dataset.error = String(error);
+  ui.status.hidden = false;
+  ui.tip.hidden = true;
+  statusTimer = setTimeout(() => {
+    ui.status.hidden = true;
+    ui.tip.hidden = false;
+  }, error ? 10000 : 4500);
 }
 
 function action(handler) {
@@ -563,21 +677,23 @@ async function updateTemplate(id, data) {
   await persist({ ...state, templates: state.templates.map((template) => template.id === id ? { ...template, ...data } : template) });
 }
 
-function receiveCapture(value) {
+async function receiveCapture(value) {
+  const content = fromClipboard(value);
+  await showEditor(true);
   syncVariant();
-  working.variants[currentVariant].content = fromClipboard(value);
+  working.variants[currentVariant].content = content;
   renderWorking();
-  notify('Черновик захвачен в текущий вариант. Сохраните шаблон.');
+  notify(t('captured'));
 }
 
-webview?.addEventListener('message', ({ data }) => {
+webview?.addEventListener('message', async ({ data }) => {
   if (data.event === 'windowState') {
     updateMaximized(data.value);
     return;
   }
   if (data.event === 'capture') {
     if (!working) return;
-    try { receiveCapture(data.value); }
+    try { await receiveCapture(data.value); }
     catch (error) { notify(error.message, true); }
     return;
   }
@@ -589,14 +705,39 @@ webview?.addEventListener('message', ({ data }) => {
 
 ui.form.addEventListener('submit', action(saveForm));
 ui.reset.addEventListener('click', action(resetForm));
+ui.addCommand.addEventListener('click', action(() => editTemplate(null)));
+ui.cancelEdit.addEventListener('click', action(async () => {
+  if (!canDiscardDraft()) return;
+  await showEditor(false);
+  resetForm();
+  ui.addCommand.focus();
+}));
 ui.search.addEventListener('input', () => state && renderTemplates());
 ui.filter.addEventListener('change', () => state && renderTemplates());
 ui.addFolder.addEventListener('click', action(newFolder));
 ui.deleteFolder.addEventListener('click', action(deleteFolder));
+ui.folderManager.addEventListener('change', () => { ui.deleteFolder.disabled = !ui.folderManager.value; });
+field('.settings').addEventListener('click', action(() => {
+  ui.folderStatus.hidden = true;
+  ui.settings.showModal();
+}));
+field('.help').addEventListener('click', action(async () => {
+  renderHelp(await request('help'));
+  ui.help.showModal();
+}));
+ui.language.addEventListener('change', action(async () => {
+  const chosen = ui.language.value;
+  ui.language.value = locale;
+  locale = await request('language', chosen);
+  if (editorOpen) syncVariant();
+  renderLocale();
+  renderAll();
+  renderWorking();
+}));
 const maximize = field('.maximize');
 function updateMaximized(maximized) {
   document.body.dataset.maximized = String(maximized);
-  maximize.setAttribute('aria-label', maximized ? 'Восстановить размер' : 'Развернуть');
+  maximize.setAttribute('aria-label', maximized ? t('restore') : t('maximize'));
   maximize.title = maximize.getAttribute('aria-label');
 }
 const toggleMaximized = () => request('toggleMaximized');
@@ -605,8 +746,8 @@ field('.minimize').addEventListener('click', action(() => request('minimize')));
 maximize.addEventListener('click', action(toggleMaximized));
 ui.addVariant.addEventListener('click', action(() => {
   syncVariant();
-  if (working.variants.length >= MAX_VARIANTS) return notify('Максимум 16 вариантов.', true);
-  working.variants.push({ id: newId(), label: `Вариант ${working.variants.length + 1}`, content: plainContent('') });
+  if (working.variants.length >= MAX_VARIANTS) return notify(t('maxVariants'), true);
+  working.variants.push({ id: newId(), label: t('variantNumber', { n: working.variants.length + 1 }), content: plainContent('') });
   currentVariant = working.variants.length - 1;
   renderWorking();
   ui.message.focus();
@@ -625,50 +766,57 @@ ui.variants.addEventListener('change', action(() => {
 }));
 ui.message.addEventListener('input', () => {
   if (working && ui.message.value !== working.variants[currentVariant].content.text) {
-    ui.richState.textContent = 'Обычный текст после изменения';
+    ui.richState.textContent = t('plainEdited');
   }
 });
 ui.capture.addEventListener('click', action(async () => receiveCapture(await request('clipboard'))));
 ui.copyRich.addEventListener('click', action(async () => {
   syncVariant();
   const content = working.variants[currentVariant].content;
-  if (!content.text.trim()) throw new Error('Добавьте текст ответа.');
+  if (!content.text.trim()) throw new Error(t('needText'));
   await request('copy', { text: content.text, tags: desktopTags(content), html: content.html });
-  notify('Ответ скопирован. Вставьте его в Telegram через Ctrl+V.');
+  notify(t('copied'));
 }));
 ui.export.addEventListener('click', action(async () => {
   if (await request('export', { format: 'telegram-binder', ...state, exportedAt: new Date().toISOString() })) {
-    notify('Копия JSON сохранена.');
+    notify(t('exported'));
   }
 }));
 ui.import.addEventListener('click', action(async () => {
   const json = await request('import');
   if (json === null) return;
   const parsed = JSON.parse(json);
-  if (parsed.format !== 'telegram-binder') throw new Error('Файл не принадлежит Telegram Binder.');
+  if (parsed.format !== 'telegram-binder') throw new Error(t('invalidBackup'));
   let next = parsed;
   if (parsed.version === 1 && Array.isArray(parsed.binds)) {
     next = { version: 2, folders: [], templates: parsed.binds.map((bind) => ({
       id: bind.id || newId(), command: bind.command, enabled: bind.enabled !== false,
-      variants: [{ id: newId(), label: 'Основной', content: plainContent(bind.text) }],
+      variants: [{ id: newId(), label: t('defaultVariant'), content: plainContent(bind.text) }],
     })) };
   }
   next = normalizeState(next);
-  if (!confirm(`Заменить текущие ${state.templates.length} шаблонов на ${next.templates.length} из файла?`)) return;
+  if (!confirm(t('confirmImport', { old: state.templates.length, next: next.templates.length }))) return;
   await persist(next);
   resetForm();
-  notify('Импорт завершён.');
+  await showEditor(false);
+  notify(t('imported'));
 }));
 
 async function start() {
   try {
+    const preferences = await request('preferences');
+    ({ locale, messages } = preferences);
+    renderLocale();
     const saved = await request('load');
     const loaded = normalizeState(saved === null ? sampleState() : JSON.parse(saved));
     await request('ready', catalog(loaded));
     state = loaded;
     renderAll();
     resetForm();
-    notify('В Telegram введите команду с точкой, ! или / и нажмите пробел.');
+    setInterval(() => {
+      tipIndex = (tipIndex + 1) % tipKeys.length;
+      ui.tip.textContent = t(tipKeys[tipIndex]);
+    }, 12000);
   } catch (error) {
     notify(error.message, true);
   }

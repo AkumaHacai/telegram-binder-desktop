@@ -6,10 +6,12 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using Microsoft.Web.WebView2.Core;
@@ -21,14 +23,18 @@ namespace TelegramBinder;
 
 static class Program
 {
+    internal static readonly string DataDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TelegramBinderDesktop");
+
     [STAThread]
     private static int Main(string[] args)
     {
         if (args.Contains("--self-test")) return SelfTest.Run();
+        Locale.Load(Path.Combine(DataDirectory, "language.txt"));
         using var once = new Mutex(true, @"Local\Telegram Binder Desktop", out var first);
         if (!first)
         {
-            MessageBox.Show("Telegram Binder уже запущен. Откройте его из области уведомлений.", "Telegram Binder");
+            MessageBox.Show(Locale.Get("alreadyRunning"), "Telegram Binder");
             return 0;
         }
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -42,9 +48,9 @@ sealed class Manager : Window
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private const string Origin = "https://binder.local/";
     private const long MaxFile = 96L * 1024 * 1024;
+    private const double CompactWidth = 444, EditorWidth = 790, EditorMinimumWidth = 700;
     private static bool AcrylicAvailable => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22621) && !SystemParameters.HighContrast;
-    private readonly string directory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TelegramBinderDesktop");
+    private readonly string directory = Program.DataDirectory;
     private readonly WebView2CompositionControl web = new();
     private readonly Forms.NotifyIcon tray = new();
     private readonly System.Drawing.Icon trayLogo;
@@ -52,6 +58,8 @@ sealed class Manager : Window
     private nint handle;
     private bool exiting;
     private bool acrylic;
+    private bool editorOpen;
+    private double compactWidth = CompactWidth;
     private CoreWebView2? core;
     private string StatePath => Path.Combine(directory, "templates.json");
 
@@ -63,10 +71,10 @@ sealed class Manager : Window
             trayLogo = new System.Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize);
 
         Content = web;
-        Width = 742;
-        Height = 628;
-        MinWidth = 470;
-        MinHeight = 450;
+        Width = CompactWidth;
+        Height = 540;
+        MinWidth = 420;
+        MinHeight = 390;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = !AcrylicAvailable;
@@ -96,9 +104,9 @@ sealed class Manager : Window
             Application.Current.Shutdown();
         };
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Открыть Telegram Binder", null, (_, _) => OpenManager());
-        menu.Items.Add("О программе", null, (_, _) => OpenAbout());
-        menu.Items.Add("Выход", null, (_, _) => { exiting = true; Close(); });
+        menu.Items.Add(Locale.Get("trayOpen"), null, (_, _) => OpenManager());
+        menu.Items.Add(Locale.Get("about"), null, (_, _) => OpenAbout());
+        menu.Items.Add(Locale.Get("quit"), null, (_, _) => { exiting = true; Close(); });
         tray.ContextMenuStrip = menu;
         tray.Icon = trayLogo;
         tray.Text = "Telegram Binder";
@@ -128,17 +136,18 @@ sealed class Manager : Window
         });
         content.Children.Add(new TextBlock
         {
-            Text = $"Версия {version}", Foreground = Brushes.White,
+            Text = Locale.Get("version").Replace("{n}", version), Foreground = Brushes.White,
             Margin = new Thickness(0, 12, 0, 12),
         });
         content.Children.Add(new Button
         {
-            Content = "Закрыть", IsCancel = true, MinWidth = 80, Height = 28,
+            Content = Locale.Get("close"), IsCancel = true, MinWidth = 80, Height = 28,
             HorizontalAlignment = HorizontalAlignment.Right,
         });
         new Window
         {
-            Title = "О программе Telegram Binder", Owner = this, ShowInTaskbar = false,
+            Title = Locale.Get("about") + " · Telegram Binder", Owner = this, ShowInTaskbar = false,
+            FlowDirection = Locale.Current == "fa" ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, WindowStyle = WindowStyle.ToolWindow,
             ResizeMode = ResizeMode.NoResize, SizeToContent = SizeToContent.Height, Width = 320,
             Background = new SolidColorBrush(Color.FromRgb(32, 38, 46)), Content = content,
@@ -155,6 +164,7 @@ sealed class Manager : Window
             DwmSetWindowAttribute(handle, darkMode, 1, sizeof(int));
             DwmSetWindowAttribute(handle, cornerPreference, 2, sizeof(int));
             acrylic = DwmSetWindowAttribute(handle, systemBackdropType, 3, sizeof(int)) == 0;
+            if (acrylic) KeepBackdropAppearance();
             if (!acrylic) Background = new SolidColorBrush(Color.FromRgb(22, 26, 32));
         }
         // WPF runs the most recently added hook first, so the caption can override WindowChrome.
@@ -164,6 +174,26 @@ sealed class Manager : Window
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(nint window, int attribute, in int value, int size);
 
+    private void KeepBackdropAppearance()
+    {
+        // shortcut: this DWM appearance flag is used until WPF exposes an inactive acrylic setting.
+        const int forceActiveAppearance = 15;
+        var pointer = Marshal.AllocHGlobal(sizeof(int));
+        try
+        {
+            Marshal.WriteInt32(pointer, 1);
+            SetWindowCompositionAttribute(handle, new CompositionData(forceActiveAppearance, pointer, sizeof(int)));
+        }
+        catch (EntryPointNotFoundException) { }
+        finally { Marshal.FreeHGlobal(pointer); }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly record struct CompositionData(int Attribute, nint Data, nuint Size);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowCompositionAttribute(nint window, in CompositionData data);
+
     private nint CaptionHitTest(nint window, int message, nint wParam, nint lParam, ref bool handled)
     {
         const int nonClientHitTest = 0x0084, caption = 2;
@@ -171,7 +201,7 @@ sealed class Manager : Window
         var screen = new Point((short)lParam, (short)((long)lParam >> 16));
         var local = PointFromScreen(screen);
         // Title bar space left of the web buttons uses the native window move gesture.
-        if (local.Y is >= 6 and < 43 && local.X >= 6 && local.X < ActualWidth - 108)
+        if (local.Y is >= 6 and < 43 && local.X >= 6 && local.X < ActualWidth - 174)
         {
             handled = true;
             return caption;
@@ -229,7 +259,7 @@ sealed class Manager : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "Не удалось открыть Telegram Binder. Проверьте, установлен ли Microsoft Edge WebView2.\n\n"
+            MessageBox.Show(this, Locale.Get("startupError") + "\n\n"
                 + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Error);
             exiting = true;
             Close();
@@ -245,7 +275,7 @@ sealed class Manager : Window
 
     private void Send(object response) => core?.PostWebMessageAsJson(JsonSerializer.Serialize(response, Json));
 
-    private void Message(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
+    private async void Message(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
     {
         if (args.Source != Origin + "index.html") return;
         var id = 0;
@@ -255,8 +285,17 @@ sealed class Manager : Window
             id = message.RootElement.GetProperty("id").GetInt32();
             var method = message.RootElement.GetProperty("method").GetString();
             var data = message.RootElement.GetProperty("value");
+            if (method == "editor")
+            {
+                await ResizeForEditor(data.GetBoolean());
+                Send(new { id, value = (object?)null });
+                return;
+            }
             var result = method switch
             {
+                "preferences" => new { locale = Locale.Current, messages = Locale.Messages },
+                "language" => SetLanguage(data.GetString()),
+                "help" => Locale.ReadResource($"help-{Locale.Current}.md"),
                 "load" => File.Exists(StatePath) ? ReadFile(StatePath) : null,
                 "ready" => SaveCatalog(data, null),
                 "save" => SaveCatalog(data.GetProperty("catalog"), data.GetProperty("state").GetRawText()),
@@ -267,7 +306,7 @@ sealed class Manager : Window
                 "hide" => HideManager(),
                 "minimize" => SetWindowState(WindowState.Minimized),
                 "toggleMaximized" => SetWindowState(WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized),
-                _ => throw new InvalidOperationException("Неизвестная операция."),
+                _ => throw new InvalidOperationException(Locale.Get("unknownMethod")),
             };
             Send(new { id, value = result });
         }
@@ -278,9 +317,60 @@ sealed class Manager : Window
     }
 
 
+    private string SetLanguage(string? language)
+    {
+        if (!Locale.Supports(language)) throw new InvalidOperationException(Locale.Get("unknownMethod"));
+        Directory.CreateDirectory(directory);
+        WriteFile(Path.Combine(directory, "language.txt"), language!);
+        Locale.Set(language);
+        var menu = tray.ContextMenuStrip!;
+        menu.Items[0].Text = Locale.Get("trayOpen");
+        menu.Items[1].Text = Locale.Get("about");
+        menu.Items[2].Text = Locale.Get("quit");
+        return Locale.Current;
+    }
+
+    private async Task ResizeForEditor(bool open)
+    {
+        if (editorOpen == open) return;
+        editorOpen = open;
+        var area = Forms.Screen.FromHandle(handle).WorkingArea;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var room = area.Width / dpi.DpiScaleX;
+        MinHeight = open ? Math.Min(540, area.Height / dpi.DpiScaleY) : 390;
+        if (WindowState == WindowState.Maximized)
+        {
+            MinWidth = open ? Math.Min(EditorMinimumWidth, room) : 420;
+            return;
+        }
+        if (open) compactWidth = ActualWidth;
+        var from = ActualWidth;
+        var target = Math.Min(room, open ? Math.Max(from, EditorWidth) : compactWidth);
+        if (open)
+        {
+            var right = PointFromScreen(new Point(area.Right, area.Top)).X;
+            if (right < target) Left -= target - right;
+        }
+        MinWidth = 420;
+        BeginAnimation(WidthProperty, null);
+        Width = target;
+        if (SystemParameters.ClientAreaAnimation && Math.Abs(target - from) > 1)
+        {
+            var animation = new DoubleAnimation(from, target, TimeSpan.FromMilliseconds(open ? 260 : 210))
+            {
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }, FillBehavior = FillBehavior.Stop,
+            };
+            var completed = new TaskCompletionSource();
+            animation.Completed += (_, _) => completed.TrySetResult();
+            BeginAnimation(WidthProperty, animation);
+            await Task.WhenAny(completed.Task, Task.Delay(370));
+        }
+        if (editorOpen == open) MinWidth = open ? Math.Min(EditorMinimumWidth, room) : 420;
+    }
+
     private object? SaveCatalog(JsonElement data, string? state)
     {
-        var templates = data.Deserialize<Template[]>(Json) ?? throw new InvalidDataException("Список команд пуст.");
+        var templates = data.Deserialize<Template[]>(Json) ?? throw new InvalidDataException(Locale.Get("emptyCatalog"));
         if (state is not null)
         {
             Directory.CreateDirectory(directory);
@@ -292,7 +382,7 @@ sealed class Manager : Window
 
     private object? Copy(JsonElement data)
     {
-        var reply = data.Deserialize<ReplyText>(Json) ?? throw new InvalidDataException("Пустой ответ.");
+        var reply = data.Deserialize<ReplyText>(Json) ?? throw new InvalidDataException(Locale.Get("emptyReply"));
         ClipboardData.Write(handle, reply, true);
         return null;
     }
@@ -311,7 +401,7 @@ sealed class Manager : Window
 
     private string? Import()
     {
-        var dialog = new OpenFileDialog { Title = "Импорт шаблонов", Filter = "JSON (*.json)|*.json" };
+        var dialog = new OpenFileDialog { Title = Locale.Get("import"), Filter = "JSON (*.json)|*.json" };
         return dialog.ShowDialog(this) == true ? ReadFile(dialog.FileName) : null;
     }
 
@@ -319,7 +409,7 @@ sealed class Manager : Window
     {
         var dialog = new SaveFileDialog
         {
-            Title = "Экспорт шаблонов", Filter = "JSON (*.json)|*.json", AddExtension = true,
+            Title = Locale.Get("export"), Filter = "JSON (*.json)|*.json", AddExtension = true,
             DefaultExt = ".json", FileName = "telegram-binder-backup.json",
         };
         if (dialog.ShowDialog(this) != true) return false;
@@ -330,14 +420,14 @@ sealed class Manager : Window
     private static string ReadFile(string path)
     {
         using var stream = File.OpenRead(path);
-        if (stream.Length > MaxFile) throw new InvalidDataException("Файл JSON превышает 96 МБ.");
+        if (stream.Length > MaxFile) throw new InvalidDataException(Locale.Get("fileTooBig"));
         using var reader = new StreamReader(stream, Utf8, detectEncodingFromByteOrderMarks: true);
         return reader.ReadToEnd();
     }
 
     private static void WriteFile(string path, string data)
     {
-        if (Utf8.GetByteCount(data) > MaxFile) throw new InvalidDataException("Файл JSON превышает 96 МБ.");
+        if (Utf8.GetByteCount(data) > MaxFile) throw new InvalidDataException(Locale.Get("fileTooBig"));
         var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {

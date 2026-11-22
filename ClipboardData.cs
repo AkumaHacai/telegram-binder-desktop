@@ -82,7 +82,7 @@ static class ClipboardData
         var handle = GetClipboardData(format);
         if (handle == 0) return null;
         var size = GlobalSize(handle);
-        if (size > (nuint)limit) throw new InvalidOperationException("Текст в буфере слишком большой.");
+        if (size > (nuint)limit) throw new InvalidOperationException(Locale.Get("clipboardTooBig"));
         var ptr = GlobalLock(handle);
         if (ptr == 0) return null;
         try
@@ -108,7 +108,7 @@ static class ClipboardData
         using (new Open(window))
         {
             if (backup is not null && GetClipboardSequenceNumber() != backup.Sequence)
-                throw new InvalidOperationException("Буфер обмена изменился. Повторите команду.");
+                throw new InvalidOperationException(Locale.Get("clipboardChanged"));
             try { data.Publish(); }
             catch
             {
@@ -147,10 +147,10 @@ static class ClipboardData
                 {
                     // A private/owner-drawn object cannot be copied independently of its producer.
                     if (format == 0x0080 || format is >= 0x0200 and <= 0x03FF)
-                        throw new InvalidOperationException("Не удалось сохранить текущее содержимое буфера обмена.");
+                        throw new InvalidOperationException(Locale.Get("clipboardBackup"));
                     var handle = GetClipboardData(format);
                     var copy = handle == 0 ? 0 : OleDuplicateData(handle, (ushort)format, 0);
-                    if (copy == 0) throw new InvalidOperationException("Не удалось сохранить текущее содержимое буфера обмена.");
+                    if (copy == 0) throw new InvalidOperationException(Locale.Get("clipboardBackup"));
                     snapshot.entries.Add((format, copy));
                 }
                 snapshot.Sequence = GetClipboardSequenceNumber();
@@ -180,12 +180,12 @@ static class ClipboardData
 
         internal void Publish()
         {
-            if (!EmptyClipboard()) throw new InvalidOperationException("Буфер обмена занят.");
+            if (!EmptyClipboard()) throw new InvalidOperationException(Locale.Get("clipboardBusy"));
             for (var i = 0; i < entries.Count; i++)
             {
                 var (format, handle) = entries[i];
                 if (SetClipboardData(format, handle) == 0)
-                    throw new InvalidOperationException("Не удалось записать в буфер обмена.");
+                    throw new InvalidOperationException(Locale.Get("clipboardWrite"));
                 entries[i] = (format, 0);
             }
         }
@@ -223,7 +223,7 @@ static class ClipboardData
                 if (OpenClipboard(window)) return;
                 Thread.Sleep(10);
             }
-            throw new InvalidOperationException("Буфер обмена занят. Повторите действие.");
+            throw new InvalidOperationException(Locale.Get("clipboardBusy"));
         }
         public void Dispose() => CloseClipboard();
     }

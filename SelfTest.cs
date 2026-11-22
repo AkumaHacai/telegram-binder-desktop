@@ -26,6 +26,15 @@ static class SelfTest
         var start = int.Parse(offsets[3].Split(':')[1]);
         var end = int.Parse(offsets[4].Split(':')[1]);
         Require(Encoding.UTF8.GetString(html, start, end - start) == "<b>Привет</b>");
+        Require(Locale.Messages.Values.All(values => values.Length == 4 && values.All(value => value.Length > 0)));
+        foreach (var language in new[] { "ru", "en", "zh", "fa" })
+        {
+            Locale.Set(language);
+            Require(Locale.Current == language);
+            Require(Locale.ReadResource($"help-{language}.md").Contains("Ctrl+Shift+B"));
+        }
+        Locale.Set("unknown");
+        Require(Locale.Current == "fa");
         return 0;
     }
 

@@ -67,7 +67,7 @@ sealed class DesktopInput : IDisposable
         popup.Chosen += index => _ = Choose(index);
         hookProc = Keyboard;
         hook = SetWindowsHookEx(13, hookProc, GetModuleHandle(null), 0);
-        if (hook == 0) throw new InvalidOperationException("Не удалось подключить клавиши Telegram.");
+        if (hook == 0) throw new InvalidOperationException(Locale.Get("hookError"));
         timer = new DispatcherTimer(TimeSpan.FromMilliseconds(65), DispatcherPriority.Background,
             (_, _) => _ = Refresh(), dispatcher);
     }
@@ -377,7 +377,7 @@ sealed class DesktopInput : IDisposable
                 });
             }
             if (result is not null && !string.IsNullOrWhiteSpace(result.Text)) captured(result);
-            else report("Не удалось скопировать черновик. Можно скопировать текст в Telegram вручную.");
+            else report(Locale.Get("captureFailed"));
         }
         catch (Exception e) { report(e.Message); }
         finally { busy = false; }
@@ -439,7 +439,7 @@ sealed class DesktopInput : IDisposable
             { Type = 1, Data = new InputUnion { Keyboard = new KeyInput { Key = key, Flags = up ? 2u : 0u, Extra = OwnInput } } };
         Input[] inputs = [Key((ushort)Ctrl), Key(key), Key(key, true), Key((ushort)Ctrl, true)];
         if (SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>()) != inputs.Length)
-            throw new InvalidOperationException("Windows заблокировала вставку или копирование.");
+            throw new InvalidOperationException(Locale.Get("inputBlocked"));
     }
 
     public void Dispose()

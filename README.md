@@ -14,17 +14,19 @@ Pick the executable for your Windows system.
 | x86 (32-bit Windows) | [TelegramBinder-win-x86.exe](https://github.com/AkumaHacai/telegram-binder-desktop/releases/latest/download/TelegramBinder-win-x86.exe) |
 | ARM64 (Windows on Arm) | [TelegramBinder-win-arm64.exe](https://github.com/AkumaHacai/telegram-binder-desktop/releases/latest/download/TelegramBinder-win-arm64.exe) |
 
-Run the `.exe` alongside Telegram Desktop. The download includes .NET and requires [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/). The app interface is in Russian.
+Run the `.exe` alongside Telegram Desktop. The download includes .NET and requires [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
 
 ## Use
 
-1. In Binder, add a command and a reply, then click **Создать команду** (Create command). You can add several replies to the same command.
+1. Click **+ Command**, enter a command and a reply, then click **Create command**. You can add several replies to the same command.
 2. In a Telegram chat, type the command and press Space. The prefixes `/`, `.` and `!` work interchangeably.
 3. When suggestions or variants appear, use the arrow keys and press Tab or Enter. You can also click a row. Esc closes the list.
 
 Press Ctrl+Shift+B in Telegram's message box to copy the draft into the variant you're editing in Binder. Telegram controls whether custom emoji can be pasted. HTML lists from Web backups paste as text with list markers.
 
-Binder stays in the system tray when you close its window. Use folders and favorites to sort replies. **Импорт JSON** (Import JSON) restores a v1 or v2 Binder backup and replaces the current library after confirmation. **Экспорт JSON** (Export JSON) saves a backup. Templates are stored in `%LOCALAPPDATA%\TelegramBinderDesktop\templates.json`.
+Binder stays in the system tray when you close its window. Use the filter next to search to browse favorites or folders. Open Settings to manage folders or switch between Russian, English, Simplified Chinese and Persian. The **?** button opens the help guide.
+
+**Import JSON** restores a v1 or v2 Binder backup and replaces the current library after confirmation. **Export JSON** saves a backup. Templates are stored in `%LOCALAPPDATA%\TelegramBinderDesktop\templates.json`.
 
 ## Build
 

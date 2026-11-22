@@ -1,40 +1,90 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'"><title>Telegram Binder</title><link rel="stylesheet" href="app.css"><script defer src="app.js"></script></head>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'">
+  <title>Telegram Binder</title>
+  <link rel="stylesheet" href="app.css">
+  <script defer src="app.js"></script>
+</head>
 <body>
 <div class="shell">
-<header class="masthead">
-  <h1><img class="brand-mark" src="brand-mark.png" width="22" height="22" alt="">Telegram Binder</h1>
-  <div class="window-actions">
-    <button type="button" class="minimize" aria-label="Свернуть на панель задач" title="Свернуть на панель задач"></button>
-    <button type="button" class="maximize" aria-label="Развернуть" title="Развернуть"></button>
-    <button type="button" class="hide" aria-label="Свернуть в трей" title="Свернуть в трей"></button>
-  </div>
-</header>
-<main><section class="library" aria-label="Шаблоны">
-          <div class="library-head"><h2>Шаблоны</h2><span class="count"></span></div>
-          <div class="toolbar">
-            <input class="search" type="search" placeholder="Поиск шаблонов" aria-label="Поиск шаблонов">
-            <div class="toolbar-right"><select class="filter" aria-label="Фильтр по папке"></select><button class="secondary add-folder" type="button" title="Новая папка">+ Папка</button><button class="ghost delete-folder" type="button" title="Удалить выбранную папку">−</button></div>
-          </div>
-          <div class="row import-row"><button class="ghost import" type="button">Импорт JSON</button><button class="ghost export" type="button">Экспорт JSON</button></div>
-          <div class="list"></div>
-</section><section class="editor" aria-label="Редактор">          <form class="editing">
-            <h3 class="form-title">Новая команда</h3>
-            <div class="form-grid">
-              <label class="field">Команда<input class="command" type="text" maxlength="33" spellcheck="false" placeholder=".сап" required></label>
-              <label class="field">Папка<select class="folder"></select></label>
-            </div>
-            <label class="field">Описание для подсказки<input class="description" type="text" maxlength="200" placeholder="Например: Ответ на обращение"></label>
-            <div class="variant-toolbar">
-              <label class="field variant-select-wrap">Вариант ответа<select class="variants"></select></label>
-              <button class="secondary add-variant" type="button" title="Добавить вариант">+ Вариант</button>
-              <button class="ghost remove-variant" type="button" title="Удалить выбранный вариант">Удалить вариант</button>
-            </div>
-            <label class="field">Название варианта<input class="variant-label" type="text" maxlength="80" placeholder="Основной"></label>
-            <label class="field">Текст ответа<textarea class="message" maxlength="20000" placeholder="Введите текст шаблона" required></textarea></label>
-            <div class="rich-info"><span class="rich-state">Обычный текст</span><button class="secondary capture" type="button">Взять из буфера</button><button class="secondary copy-rich" type="button">Копировать ответ</button></div>
-            <p class="hint">Ctrl+Shift+B в Telegram захватывает весь черновик.</p>
-            <div class="row"><button class="primary save" type="submit">Создать команду</button><button class="ghost reset" type="button">Сбросить форму</button></div>
-          </form>
-</section></main><footer class="status" role="status" aria-live="polite">Загружаем шаблоны…</footer>
-</div></body></html>
+  <header class="masthead">
+    <h1><img class="brand-mark" src="brand-mark.png" width="22" height="22" alt="">Telegram Binder</h1>
+    <div class="window-actions">
+      <button type="button" class="help" data-label="help">?</button>
+      <button type="button" class="settings" data-label="settings">⚙</button>
+      <button type="button" class="minimize" data-label="minimize"></button>
+      <button type="button" class="maximize" data-label="maximize"></button>
+      <button type="button" class="hide" data-label="hide"></button>
+    </div>
+  </header>
+  <main>
+    <section class="library" data-label="templates">
+      <div class="library-head"><h2 data-text="templates">Шаблоны</h2><span class="count"></span></div>
+      <div class="toolbar">
+        <select class="filter" data-label="filter"></select>
+        <input class="search" type="search" data-label="search" data-placeholder="search">
+      </div>
+      <div class="row import-row">
+        <button class="ghost import" type="button" data-text="importAction" data-label="import">Импорт</button>
+        <button class="ghost export" type="button" data-text="exportAction" data-label="export">Экспорт</button>
+        <button class="primary add-command" type="button" data-text="addCommand" aria-expanded="false" aria-controls="editor">+ Команда</button>
+      </div>
+      <div class="list" tabindex="0" role="region" data-label="templates"></div>
+    </section>
+    <section class="editor" id="editor" data-label="editor" hidden>
+      <form class="editing">
+        <div class="editor-head">
+          <h3 class="form-title"></h3>
+          <button class="ghost cancel-edit" type="button" data-text="close">Закрыть</button>
+        </div>
+        <div class="form-grid">
+          <label class="field"><span data-text="command"></span><input class="command" dir="ltr" type="text" maxlength="33" spellcheck="false" placeholder=".reply" required></label>
+          <label class="field"><span data-text="folder"></span><select class="folder"></select></label>
+        </div>
+        <label class="field"><span data-text="description"></span><input class="description" dir="auto" type="text" maxlength="200" data-placeholder="descriptionExample"></label>
+        <div class="variant-toolbar">
+          <label class="field variant-select-wrap"><span data-text="replyVariant"></span><select class="variants"></select></label>
+          <button class="secondary add-variant" type="button" data-text="addVariant"></button>
+          <button class="ghost remove-variant" type="button" data-text="removeVariant"></button>
+        </div>
+        <label class="field"><span data-text="variantName"></span><input class="variant-label" dir="auto" type="text" maxlength="80"></label>
+        <label class="field reply-field"><span data-text="replyText"></span><textarea class="message" dir="auto" maxlength="20000" data-placeholder="enterReply" required></textarea></label>
+        <div class="rich-info">
+          <span class="rich-state"></span>
+          <button class="secondary capture" type="button" data-text="clipboard"></button>
+          <button class="secondary copy-rich" type="button" data-text="copyReply"></button>
+        </div>
+        <div class="row"><button class="primary save" type="submit"></button><button class="ghost reset" type="button" data-text="reset"></button></div>
+      </form>
+    </section>
+  </main>
+  <footer class="footer">
+    <span class="tip" role="note"></span>
+    <span class="status" role="status" aria-live="polite" hidden></span>
+  </footer>
+</div>
+<dialog class="settings-dialog" aria-labelledby="settings-title">
+  <div class="dialog-head"><h2 id="settings-title" data-text="settings"></h2><form method="dialog"><button class="ghost" data-text="close"></button></form></div>
+  <label class="field"><span data-text="language"></span>
+    <select class="language" dir="ltr">
+      <option value="ru" lang="ru">Русский</option>
+      <option value="en" lang="en">English</option>
+      <option value="zh" lang="zh-Hans">简体中文</option>
+      <option value="fa" lang="fa">فارسی</option>
+    </select>
+  </label>
+  <h3 data-text="manageFolders"></h3>
+  <p class="dialog-help" data-text="folderHint"></p>
+  <label class="field"><span data-text="folder"></span><select class="folder-manager"></select></label>
+  <div class="row"><button type="button" class="add-folder" data-text="addFolder"></button><button type="button" class="delete-folder danger" data-text="deleteFolder"></button></div>
+  <p class="folder-status" role="status" hidden></p>
+</dialog>
+<dialog class="help-dialog" aria-labelledby="help-title">
+  <div class="dialog-head"><h2 id="help-title" data-text="help"></h2><form method="dialog"><button class="ghost" data-text="close"></button></form></div>
+  <article class="help-content"></article>
+</dialog>
+</body>
+</html>

@@ -33,6 +33,7 @@ sealed partial class SuggestionWindow : Window
 
     internal void Present(Choice[] choices, Rect bounds, nint target)
     {
+        Title = Locale.Get("suggestions");
         list.Items.Clear();
         for (var i = 0; i < choices.Length; i++)
         {
