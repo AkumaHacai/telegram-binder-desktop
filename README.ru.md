@@ -1,10 +1,13 @@
-# Telegram Binder
+<p align="center"><img src="Web/brand-mark.png" width="76" alt=""></p>
+<h1 align="center">Telegram Binder</h1>
+<p align="center"><strong>Биндер быстрых ответов для Telegram Desktop на Windows</strong></p>
+<p align="center"><a href="https://github.com/AkumaHacai/telegram-binder-desktop/releases/latest"><strong>Скачать для Windows</strong></a> · <a href="README.md">English</a> · <a href="README.zh.md">简体中文</a> · <a href="README.fa.md">فارسی</a></p>
 
-[English](README.md) · [简体中文](README.zh.md) · [فارسی](README.fa.md)
+Сохраняй шаблоны сообщений и вставляй их в черновик Telegram короткой командой. Например, набери `/часы` и нажми пробел, чтобы вставить график работы. Сообщение отправляешь ты.
 
-Сохраняй готовые ответы и вставляй их в Telegram Desktop короткими командами, например `/ответ`. Биндер заменяет команду в черновике. Сообщение отправляешь ты.
+![Telegram Binder для Windows со списком сохранённых ответов и редактором шаблона /hours](docs/media/telegram-binder-editor.png)
 
-## Скачать
+## Скачать для Windows
 
 Выбери файл для своей версии Windows.
 

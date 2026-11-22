@@ -1,10 +1,13 @@
-# Telegram Binder
+<p align="center"><img src="Web/brand-mark.png" width="76" alt=""></p>
+<h1 align="center">Telegram Binder</h1>
+<p align="center"><strong>适用于 Windows 版 Telegram Desktop 的快捷回复工具</strong></p>
+<p align="center"><a href="https://github.com/AkumaHacai/telegram-binder-desktop/releases/latest"><strong>下载 Windows 版</strong></a> · <a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <a href="README.fa.md">فارسی</a></p>
 
-[English](README.md) · [Русский](README.ru.md) · [فارسی](README.fa.md)
+保存常用消息模板，再用短命令把回复插入 Telegram 草稿。例如，输入 `/hours` 后按空格，即可插入客服工作时间。准备好后，由你发送消息。
 
-保存常用回复，再用 `/reply` 之类的短指令把回复插入 Telegram Desktop。Binder 会替换草稿里的指令，消息由你发送。
+![Windows 版 Telegram Binder 的已保存回复列表和 /hours 模板编辑器](docs/media/telegram-binder-editor.png)
 
-## 下载
+## 下载 Windows 版
 
 | Windows | 下载 |
 | --- | --- |

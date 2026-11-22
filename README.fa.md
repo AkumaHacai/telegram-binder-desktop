@@ -1,10 +1,13 @@
-# Telegram Binder
+<p align="center"><img src="Web/brand-mark.png" width="76" alt=""></p>
+<h1 align="center">Telegram Binder</h1>
+<p align="center" dir="rtl"><strong>ابزار پاسخ سریع برای تلگرام دسکتاپ در ویندوز</strong></p>
+<p align="center"><a href="https://github.com/AkumaHacai/telegram-binder-desktop/releases/latest"><strong>دانلود برای ویندوز</strong></a> · <a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh.md">简体中文</a></p>
 
-[English](README.md) · [Русский](README.ru.md) · [简体中文](README.zh.md)
+الگوهای پیام را ذخیره کنید و با یک فرمان کوتاه در پیش‌نویس تلگرام بگذارید. برای نمونه، `/hours` را بنویسید و کلید فاصله را بزنید تا ساعت کاری پشتیبانی درج شود. وقتی پیام آماده بود، خودتان آن را بفرستید.
 
-پاسخ‌های پرکاربرد را ذخیره کنید و با دستور کوتاهی مثل `/reply` در تلگرام دسکتاپ وارد کنید. برنامه دستور را در پیش‌نویس با پاسخ جایگزین می‌کند و ارسال پیام با خودتان است.
+![تلگرام بایندر برای ویندوز با فهرست پاسخ‌های ذخیره‌شده و ویرایشگر الگوی hours](docs/media/telegram-binder-editor.png)
 
-## دانلود
+## دانلود برای ویندوز
 
 | نسخهٔ ویندوز | دانلود |
 | --- | --- |
