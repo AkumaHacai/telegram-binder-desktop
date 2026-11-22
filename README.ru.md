@@ -1,6 +1,6 @@
 # Telegram Binder
 
-[English](README.md)
+[English](README.md) · [简体中文](README.zh.md) · [فارسی](README.fa.md)
 
 Сохраняй готовые ответы и вставляй их в Telegram Desktop короткими командами, например `/ответ`. Биндер заменяет команду в черновике. Сообщение отправляешь ты.
 
