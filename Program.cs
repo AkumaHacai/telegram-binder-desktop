@@ -8,6 +8,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shell;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
@@ -43,6 +44,8 @@ sealed class Manager : Window
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TelegramBinderDesktop");
     private readonly WebView2CompositionControl web = new();
     private readonly Forms.NotifyIcon tray = new();
+    private readonly Forms.ToolStripMenuItem aboutMenu = new("О программе") { Enabled = false };
+    private readonly System.Drawing.Icon trayLogo;
     private DesktopInput? input;
     private nint handle;
     private bool exiting;
@@ -52,6 +55,10 @@ sealed class Manager : Window
     internal Manager()
     {
         Title = "Telegram Binder";
+        Icon = BitmapFrame.Create(new Uri("pack://application:,,,/Assets/TelegramBinder.ico"));
+        using (var stream = Application.GetResourceStream(new Uri("Assets/TelegramBinderTray.ico", UriKind.Relative)).Stream)
+            trayLogo = new System.Drawing.Icon(stream, Forms.SystemInformation.SmallIconSize);
+
         Content = web;
         Width = 742;
         Height = 628;
@@ -82,13 +89,20 @@ sealed class Manager : Window
             input?.Dispose();
             web.Dispose();
             tray.Dispose();
+            trayLogo.Dispose();
             Application.Current.Shutdown();
         };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Открыть Telegram Binder", null, (_, _) => OpenManager());
+        aboutMenu.Click += (_, _) =>
+        {
+            OpenManager();
+            Send(new { @event = "about", value = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) });
+        };
+        menu.Items.Add(aboutMenu);
         menu.Items.Add("Выход", null, (_, _) => { exiting = true; Close(); });
         tray.ContextMenuStrip = menu;
-        tray.Icon = System.Drawing.SystemIcons.Application;
+        tray.Icon = trayLogo;
         tray.Text = "Telegram Binder";
         tray.DoubleClick += (_, _) => OpenManager();
         tray.Visible = true;
@@ -146,17 +160,22 @@ sealed class Manager : Window
                     Origin + "index.html" => ("index.html", "text/html"),
                     Origin + "app.css" => ("app.css", "text/css"),
                     Origin + "app.js" => ("app.js", "text/javascript"),
+                    Origin + "brand-mark.png" => ("brand-mark.png", "image/png"),
+                    Origin + "brand-wordmark.png" => ("brand-wordmark.png", "image/png"),
                     _ => ("", ""),
                 };
                 var data = resource.Item1.Length > 0
                     ? Assembly.GetExecutingAssembly().GetManifestResourceStream("TelegramBinder.Web." + resource.Item1)
                     : null;
+                var contentType = resource.Item2.StartsWith("text/", StringComparison.Ordinal)
+                    ? resource.Item2 + "; charset=utf-8" : resource.Item2;
                 args.Response = data is not null
                     ? environment.CreateWebResourceResponse(data, 200, "OK",
-                        "Content-Type: " + resource.Item2 + "; charset=utf-8\r\nX-Content-Type-Options: nosniff")
+                        "Content-Type: " + contentType + "\r\nX-Content-Type-Options: nosniff")
                     : environment.CreateWebResourceResponse(Stream.Null, 403, "Forbidden", "");
             };
             core.NavigationStarting += (_, args) => args.Cancel = args.Uri != Origin + "index.html";
+            core.NavigationCompleted += (_, args) => aboutMenu.Enabled = args.IsSuccess;
             core.NewWindowRequested += (_, args) => args.Handled = true;
             core.WebMessageReceived += Message;
             input = new(handle, Dispatcher, Report, reply =>

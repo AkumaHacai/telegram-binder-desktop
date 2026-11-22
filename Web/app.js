@@ -575,6 +575,12 @@ webview?.addEventListener('message', ({ data }) => {
     updateMaximized(data.value);
     return;
   }
+  if (data.event === 'about') {
+    field('.about-version').textContent = data.value ? `Версия ${data.value}` : '';
+    const dialog = field('.about');
+    if (!dialog.open) dialog.showModal();
+    return;
+  }
   if (data.event === 'capture') {
     if (!working) return;
     try { receiveCapture(data.value); }

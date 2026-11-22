@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'"><title>Telegram Binder</title><link rel="stylesheet" href="app.css"><script defer src="app.js"></script></head>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'"><title>Telegram Binder</title><link rel="stylesheet" href="app.css"><script defer src="app.js"></script></head>
 <body>
 <div class="shell">
 <header class="masthead">
-  <h1>Telegram Binder</h1>
+  <h1><img class="brand-mark" src="brand-mark.png" width="22" height="22" alt="">Telegram Binder</h1>
   <div class="window-actions">
     <button type="button" class="minimize" aria-label="Свернуть на панель задач" title="Свернуть на панель задач"></button>
     <button type="button" class="maximize" aria-label="Развернуть" title="Развернуть"></button>
@@ -37,4 +37,10 @@
             <div class="row"><button class="primary save" type="submit">Создать команду</button><button class="ghost reset" type="button">Сбросить форму</button></div>
           </form>
 </section></main><footer class="status" role="status" aria-live="polite">Загружаем шаблоны…</footer>
-</div></body></html>
+</div>
+<dialog class="about" aria-label="О программе">
+  <img src="brand-wordmark.png" alt="Telegram Binder">
+  <p class="about-version"></p>
+  <form method="dialog"><button class="ghost" autofocus>Закрыть</button></form>
+</dialog>
+</body></html>
